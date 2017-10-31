@@ -55,8 +55,8 @@ def breed_next_gen(pair):
     return next_gen
 
 def evolve():
-    adam = pid.PidGenome(0, 0, 0, .9)
-    eve = pid.PidGenome(1, 1, 1, .9)
+    adam = pid.PidGenome(0, 0, 0)
+    eve = pid.PidGenome(1, 1, 1)
     generation = breed_next_gen((adam, eve))
     i = 0
     while i < config.evolution_steps:
