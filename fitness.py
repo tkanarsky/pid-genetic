@@ -1,39 +1,37 @@
 import config
-import time
 import pid
 
-def fitness_check(pid):
+
+def fitness_check(organism):
     num_ticks = 0
     accuracy = 0
     height = 0
     velocity = 0
     previous_height = None
     previous_height_2 = None
-    previous_time = time.time()
-    for idx, i in enumerate(config.flight_profile):
+    for idx, i in enumerate(config.FLIGHT_PROFILE):
         while True:
-            thrust = pid.calculate(i-height)
-            thrust = max(min([thrust, config.max_thrust]), config.min_thrust)
+            thrust = organism.calculate(i - height)
+            thrust = max(min([thrust, config.MAX_THRUST]), config.MIN_THRUST)
             velocity += thrust
-            # print("tick: {0}, height: {1}, velocity: {2}".format(num_ticks, height, velocity))
+            velocity += config.GRAVITY
             height = velocity + height
             if previous_height and previous_height_2 is not None:
-                if abs(previous_height - height) + abs(previous_height_2-height) < .001:
-                    accuracy += abs(i-height)
-                    print("______________Complete phase {}!________________".format(idx))
+                if abs(previous_height - height) + abs(previous_height_2 - height) < config.STABILITY_THRESHOLD:
+                    accuracy += abs(i - height)
+                    # print("Success! Stabilized at height {}".format(i))
                     break
-            # print("tick {}".format(height))
             previous_height_2 = previous_height
             previous_height = height
             num_ticks += 1
-            if num_ticks > 10000 * (idx + 1):
-                print("Took too long")
+            if num_ticks > config.TIMEOUT * (idx + 1):
+                # print("Took too long")
                 return
-            if abs(height-i) > i*3:
-                print("failed to converge {}".format(i))
-                print(num_ticks)
+            if abs(height - i) > i * config.CONVERGENCE_CUTOFF:
+                # print("Failed to converge at height {}".format(i))
                 return
-    return -num_ticks - (accuracy * 500) # This is the fitness for this individual
+    # print("Fitness check done")
+    return -num_ticks - (accuracy * config.ACCURACY_MULTIPLIER)  # This is the fitness for this individual
 
 
 def survival_of_fittest(generation):
@@ -42,24 +40,22 @@ def survival_of_fittest(generation):
         val = fitness_check(i)
         if val is not None:
             ranked_genes.append((i, val))
-        else:
-            pass
-    print("we done")
-    print(ranked_genes)
     return sorted(ranked_genes, key=lambda x: x[1])[-2:]
+
 
 def breed_next_gen(pair):
     next_gen = []
-    for i in range(config.generation_size):
+    for _ in range(config.GENERATION_SIZE):
         next_gen.append(pair[0] + pair[1])
     return next_gen
 
+
 def evolve():
-    adam = pid.PidGenome(0, 0, 0)
-    eve = pid.PidGenome(1, 1, 1)
+    adam = pid.PidGenome(*config.START_PID_1)
+    eve = pid.PidGenome(*config.START_PID_2)
     generation = breed_next_gen((adam, eve))
     i = 0
-    while i < config.evolution_steps:
+    while i < config.EVOLUTION_STEPS:
         next_pair = survival_of_fittest(generation)
         if len(next_pair) < 2:
             generation = breed_next_gen((adam, eve))
@@ -68,16 +64,10 @@ def evolve():
             continue
         print("Step {0}, best pair {1}".format(i, next_pair))
         generation = breed_next_gen((next_pair[0][0], next_pair[1][0]))
-        i+=1
-    print(next_pair[0][0])
+        i += 1
+    return next_pair[1][0]
+
 
 if __name__ == "__main__":
-    evolve()
-
-
-
-
-
-
-
-
+    best_pid = evolve()
+    print("Maybe-not-optimal P,I,D: {}".format(best_pid))
